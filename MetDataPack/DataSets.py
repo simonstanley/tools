@@ -12,8 +12,6 @@ from urllib2 import urlopen
 from calendar import monthrange
 from GetData import ObservationData
 
-#Git commit test
-
 NAO_PATH      = '/net/home/h02/sstanley/Documents/data/NAO_index.txt'
 FLOOD_PATH    = '/home/h02/sstanley/Documents/data/flood_event_count_89_13.txt'
 NCICTEXT_PATH = 'http://www01/obs_dev/od4/series/text/'
