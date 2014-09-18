@@ -52,6 +52,14 @@ class Test_skill_score(unittest.TestCase):
         self.assertAlmostEqual(score, 0.5)
 
 
+class Test_generate_pdf_values(unittest.TestCase):
+    def test_pdf_vals(self):
+        data = [5,6,7,8,9]
+        pdf_vals, pdf_points = generate_pdf_values(data, levels=3)
+        self.assertEqual(list(pdf_vals), [0.0066132171305349121, 0.19319522907583744, 0.0066132171305348904])
+        self.assertEqual(list(pdf_points), [2.3333333333333339, 7.0000000000000009, 11.666666666666668])
+
+
 class Test_ProbabilityAccuracyScores(unittest.TestCase):
     def test_bad_input(self):
         # Bad array shape

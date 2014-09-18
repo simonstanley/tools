@@ -1,4 +1,5 @@
 import numpy
+import scipy.stats
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 
@@ -240,6 +241,75 @@ def skill_score(accuracy_score, reference_score, perfect_score):
     skill_score = (accuracy_score - reference_score) / \
                   (perfect_score  - reference_score)
     return skill_score
+    
+def generate_pdf_values(data, levels=50, range_limiter=20, 
+                          bandwidth='silverman', return_pdf=False):
+    """
+    Calculate the PDF function and return a set of values and points along the 
+    curve.
+    
+    Args:
+    
+    * data : 1D array like
+        List of data values.
+    
+    Kwargs:
+    
+    * levels : integer
+        This determines how many points are returned. If plotting, higher 
+        values lead to smoother plots.
+    
+    * range_limiter: scalar
+        This value is used to calculate the range of the PDF. A PDF function 
+        can take a while to converge to 0, so to calculate sensible stop and 
+        start points, some proportional value above 0 is calculated. The given
+        range_limiter value is used as factor to determine what that above 0 
+        value is. Simply, the higher the given value the wider the PDF limits.
+        See nested function calculate_pdf_limits for more details.
+    
+    * bandwidth: string, scalar or callable
+        The method used to calculate the estimator bandwidth. This can be 
+        'scott', 'silverman', a scalar constant or a callable. If a scalar, 
+        this will be used directly as kernel-density estimate (kde) factor. If 
+        a callable, it should take a scipy.stats.gaussian_kde instance as only 
+        parameter and return a scalar. Default is 'silverman'.
+    
+    * return_pdf: boolean
+        If True, the callable scipy.stats.gaussian_kde instance is also 
+        returned.
+    
+    Returns:
+        PDF values, PDF points, PDF function (optional)
+    
+    """
+    def calculate_pdf_limits(pdf, data, levels, range_limiter):
+        """
+        Calculate the values where the PDF stops. The range_limiter determines the 
+        value at which to cut the PDF outer limits. It is a proportional value not 
+        an actual value. The larger the given value the further out the extremes 
+        will be returned.
+            
+        """
+        dmin = numpy.min(data)
+        dmax = numpy.max(data)
+        pdf_min = numpy.mean([pdf(dmin)[0], pdf(dmax)[0]]) / float(range_limiter)
+        # First calculate the appropriate step size given the data range and number
+        # of levels.
+        step_size = (dmax - dmin) / float(levels)
+        while pdf(dmin)[0] > pdf_min:
+            dmin -= step_size
+        while pdf(dmax)[0] > pdf_min:
+            dmax += step_size
+        return dmin, dmax
+    
+    # Generate kernel density estimate (PDF)
+    pdf = scipy.stats.gaussian_kde(data, bw_method=bandwidth)
+    dmin, dmax = calculate_pdf_limits(pdf, data, levels, range_limiter)
+    pdf_points = numpy.linspace(dmin, dmax, levels)
+    if return_pdf:
+        return pdf(pdf_points), pdf_points, pdf
+    else:
+        return pdf(pdf_points), pdf_points
 
 class ProbabilityAccuracyScores(object):
     """

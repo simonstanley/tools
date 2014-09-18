@@ -140,7 +140,7 @@ class TextData(object):
         climatology = self.__class__(**arg_dict)
         return climatology
 
-    def anomalies(self, clim_period=[1981,2011], analysis_method=None):
+    def anomalies(self, clim_period=[1981,2010], analysis_method=None):
         """
         Convert the data into anomaly space using its climatology.
         
