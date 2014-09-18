@@ -18,6 +18,14 @@ NCICTEXT_PATH = 'http://www01/obs_dev/od4/series/text/'
 EObs_PATH     = '/project/seasonal/hadyn/e_obs/'
 NCIC_PATH     = '/project/ncic/NCIC/projects/NCIC_Gridding_Software/Test_data/'
 ERA_I_PATH    = '/project/seasonal/frgo/'
+ISSFCST_PATH  = '/home/h02/frgo/TEST/jhirst_plots/new_caboff_plots/plots_N216/'
+ISS_SAVEFILE  = '/net/home/h02/sstanley/Documents/data/forecast_data/'
+
+VARS = ['t2m', 'precip']
+PERS = ['seas', 'mon']
+MONS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
 
 ncic_txt_var_dict = {'Temp'     : {'name'  : 'Tmean', 
                                    'units' : 'celsius',
@@ -80,6 +88,13 @@ def sort_months(months, months_are_bounds):
             months = all_months
         return months
 
+def check(arg, lst):
+    if arg in lst:
+        return arg
+    else:
+        raise UserWarning('"%s" is not valid. Valid options are %s' 
+                          % (arg, lst))
+
 class TextData(object):
     def analysis(self, method, axis=1):
         """
@@ -101,7 +116,7 @@ class TextData(object):
         if self.data is not None:
             return getattr(numpy, method.lower())(self.data, axis=axis)
 
-    def climatology(self, clim_period=[1981,2011]):
+    def climatology(self, clim_period=[1981,2010]):
         """
         Return a class instance for the same variable and season as the current
         instance but for a climatological period.
@@ -687,3 +702,284 @@ class ERAIData(ObservationData):
         """
         for key in era_var_dict.keys():
             print key
+            
+
+class IssuedForecastData(object):
+    """
+    Class for retrieving forecast and observation data for the coming forecast 
+    period.
+     
+    """
+    def __init__(self, variable, period, iss_month, iss_year):
+        self.variable  = check(variable, VARS)
+        self.period    = check(period, PERS)
+        self.iss_month = check(iss_month, MONS)
+        self.iss_year  = iss_year
+            
+    def _create_filename(self, modified):
+        """
+        
+        """
+        if modified:
+            adjusted = '_adj%s' % self.period
+        else:
+            adjusted = ''
+        return '{P}{M}{Y}_{V}{X}.dat'.format(P=ISSFCST_PATH,
+                                             M=self.iss_month,
+                                             Y=str(self.iss_year),
+                                             V=self.variable,
+                                             X=adjusted)
+    
+    def _read_file(self, filename):
+        """
+        Read through the file to establish where monthly data ends and seasonal
+        data begins. This break is where the line starts with the letter instead of
+        a number. Used for raw data only.
+        
+        """
+        with open(filename) as f:
+            content = f.readlines()
+        
+        index = []
+        for i in range(len(content)):
+            if content[i][0].isalpha():
+                index.append(i)
+        return index[-1]
+
+    def _sort(self, data):
+        """
+        Separate the raw data into monthly and seasonal data using the given
+        index.
+        
+        """
+        month = data[0][:data[1]-1]
+        season = data[0][data[1]-1:]
+        month = filter(lambda val: val != 99999, month)
+        season = filter(lambda val: val != 99999, season)
+        return month, season
+    
+    def _raw_data_load(self, filename, col=4):
+        """
+        Load the raw data and return it with the index of where the seasonal
+        data begins.
+        
+        """
+        index = self._read_file(filename)
+        data = numpy.genfromtxt(filename, delimiter='\t', usecols=col, 
+                                invalid_raise=False, filling_values=99999)
+        return (list(data), index)
+    
+    def _mod_data_load(self, filename, col=3):
+        """
+        Load the modified data.
+        
+        """
+        data = numpy.genfromtxt(filename, delimiter='\t', usecols=col, 
+                                skiprows=2, filling_values=99999)
+        data_fin = []
+        for i in data:
+            if i != 99999:
+                data_fin.append(i)
+        return data_fin
+
+    def _obs_load(self, years, region='UK'):
+        """
+        Load observation data.
+        
+        """
+        if self.variable == 't2m':
+            variable = 'temp'
+            method = 'MEAN'
+        elif self.variable == 'precip':
+            variable = self.variable
+            method = 'SUM'
+        this_month = MONS.index(self.iss_month)
+        if self.period == 'mon':
+            # Add 2, 1 to adjust index, 1 cause we look at month ahead.
+            adjusted_months = [this_month + 2]
+        elif self.period == 'seas':
+            adjusted_months = range(this_month + 2, this_month + 5)
+        months = []
+        for x in adjusted_months:
+            if x > 12:
+                x -= 12
+            months.append(x)
+        ncic = NCICTextData(variable, months, years, region=region,
+                            months_are_bounds=False)
+        return ncic.analysis(method)
+
+    def _get_savename(self, dtype, modified=False):
+        """
+        Create a filename to save data.
+        
+        """
+        if self.variable == 't2m':
+            var = 'temp'
+        else:
+            var = self.variable
+        if dtype == 'mod':
+            if modified:
+                typ = 'mod'
+            else:
+                typ = 'raw' 
+            return '{P}_{V}_{T}.txt'.format(P=self.period, V=var, T=typ)
+        elif dtype == 'obs':
+            return 'obs_{P}_{V}.txt'.format(P=self.period, V=var)
+
+    def model_load(self, modified=False):
+        """
+        Load the model forecast members.
+        
+        Kwargs:
+        
+        * modified: boolean
+            Whether to load the modified forecast of original members. Note, 
+            modified members only exist after a seasonal meeting.
+        
+        Returns:
+            numpy array
+        
+        """
+        filename = self._create_filename(modified)
+        if modified:
+            data = self._mod_data_load(filename)
+        else:
+            # Original data files contain both monthly and seasonal data.
+            all_data = self._raw_data_load(filename)
+            monthly, seasonal = self._sort(all_data)
+            if self.period == 'mon':
+                data = monthly
+            else:
+                data = seasonal
+        return data
+
+    def current_obs_load(self, region='UK'):
+        """
+        Return the observation for the forecast period.
+        
+        Returns:
+            float
+            
+        """
+        # Make sure the correct year is used when loading the current 
+        # observation.
+        if self.iss_month == "Dec":
+            year = self.iss_year + 1
+        else:
+            year = self.iss_year
+        return self._obs_load([year], region)[0]
+
+    def climatology_obs_load(self, clim_period=[1981, 2010]):
+        """
+        Return the climatology for the forecast period.
+        
+        Kwargs:
+        
+        * clim_period: list of 2 years
+            Specify the climatological period.
+        
+        Returns:
+            numpy array
+        
+        """
+        return self._obs_load(clim_period)
+
+    def print_data(self, data, dtype, modified=False):
+        """
+        Used to print current data and all previous saved data in the save 
+        file. Note, this useful specifically for the operational verification 
+        work.
+        
+        Args:
+        
+        * data: array like
+            Normally an array produced by this class
+        
+        * dtype: string 'model' or 'obs'
+            Specifies the type of data, i.e. which file to look in.
+        
+        Kwargs:
+        
+        * modified: boolean
+            If looking a past forecast data, specify whether to look at data
+            before or after modification.
+        
+        """
+        print 'Data in saved file:\n'
+        data_fin = self.save_data(data, dtype, modified, save=False, 
+                                  check_exists=False, print_data=True)            
+        print '\n\nCurrent loaded data:\n'
+        print data_fin
+    
+    def save_data(self, data, dtype, modified=False, save=False, 
+                   check_exists=True, print_data=False):
+        """
+        Fill any missing members with 99999, check the file has not been 
+        updated already and save data to file. Note, this useful specifically 
+        for the operational verification work.
+        
+        Args:
+        
+        * data: array like
+            Normally an array produced by this class
+        
+        * dtype: string 'model' or 'obs'
+            Specifies the type of data, i.e. which file to look in.
+        
+        Kwargs:
+        
+        * modified: boolean
+            If looking a past forecast data, specify whether to look at data
+            before or after modification.
+        
+        * save: boolean
+            Whether to actually make the save.
+        
+        * check_exists: boolean
+            Read through the save file looking for data which matches the 
+            current data. This just checks you are not saving the same data
+            twice as this causes problems in verification work.
+        
+        * print_data: boolean
+            Prints the data in the file. Use print_data method to print this
+            and current data.
+        
+        """
+        dtype = check(dtype, ['model', 'obs'])
+        if dtype == 'model':
+            filename = self._get_savename('mod', modified)
+            while len(data) < 42:
+                data.append(99999.)
+            data_fin = ' '.join([str(x) for x in data])
+        
+        elif dtype == 'obs':
+            filename = self._get_savename('obs')
+            data_fin = str(data)
+        
+        with open(ISS_SAVEFILE+filename, 'r+') as outfile:
+            curr_data = outfile.readlines()
+            while curr_data[-1] == '\n':
+                del curr_data[-1]
+            
+            if print_data:
+                for prev_data in curr_data:
+                    print prev_data,
+                return data_fin
+            
+            if check_exists:
+                unique = True
+                for prev_data in curr_data:
+                    if dtype == 'model':
+                        if prev_data.split()[0:42] == data_fin.split()[0:42]:
+                            print 'This data, from forecast issued %s %s, has been saved.'\
+                                  % (self.iss_month, self.iss_year)
+                            unique = False
+                    if dtype == 'obs':
+                        if prev_data.strip() == data_fin:
+                            print 'This observation value has been saved, however, it may be another period with the same value.'
+                            unique = False
+                if unique:
+                    print 'Unsaved %s data' % dtype
+            if save:
+                outfile.write('\n'+data_fin)
+                
