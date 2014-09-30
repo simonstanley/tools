@@ -782,9 +782,29 @@ class IssuedForecastData(object):
                 data_fin.append(i)
         return data_fin
 
-    def _obs_load(self, years, region='UK'):
+    def _obs_from_file_load(self):
+        """
+        
+        """
+        filename = self._create_filename(modified=False)
+        # Original data files contain both monthly and seasonal data.
+        all_data = self._raw_data_load(filename, col=2)
+        monthly, seasonal = self._sort(all_data)
+        if self.period == 'mon':
+            data = monthly
+        else:
+            data = seasonal
+        return data
+
+    def _obs_from_ncic_load(self, years, region='UK'):
         """
         Load observation data.
+        
+        Kwargs:
+        
+        * region: string
+            Region with the UK defined by NCIC. Default is UK.
+        
         
         """
         if self.variable == 't2m':
@@ -857,6 +877,11 @@ class IssuedForecastData(object):
         """
         Return the observation for the forecast period.
         
+        Kwargs:
+        
+        * region: string
+            Region with the UK defined by NCIC. Default is UK.
+        
         Returns:
             float
             
@@ -867,28 +892,42 @@ class IssuedForecastData(object):
             year = self.iss_year + 1
         else:
             year = self.iss_year
-        return self._obs_load([year], region)[0]
+        return self._obs_from_ncic_load([year], region)[0]
 
-    def climatology_obs_load(self, clim_period=[1981, 2010]):
+    def climatology_obs_load(self, source='ncic', clim_period=[1981, 2010], 
+                               region='UK'):
         """
         Return the climatology for the forecast period.
         
         Kwargs:
         
+        * source: 'file' or 'ncic'
+            Data from 'file' does come from NCIC indirectly but is guaranteed 
+            to be consistent (where any small adjustments are made). 'ncic' 
+            takes data directly from the NCIC pages. Note, the kwargs 
+            clim_period and region are ignored if source is set to 'file'.
+        
         * clim_period: list of 2 years
             Specify the climatological period.
+        
+        * region: string
+            Region with the UK defined by NCIC. Default is UK.
+        
         
         Returns:
             numpy array
         
         """
-        return self._obs_load(clim_period)
+        if source == 'ncic':
+            return self._obs_from_ncic_load(clim_period, region)
+        else:
+            return self._obs_from_file_load()
 
     def print_data(self, data, dtype, modified=False):
         """
         Used to print current data and all previous saved data in the save 
-        file. Note, this useful specifically for the operational verification 
-        work.
+        file. Note, this is useful specifically for the operational 
+        verification work.
         
         Args:
         

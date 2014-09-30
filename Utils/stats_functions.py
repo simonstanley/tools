@@ -217,7 +217,7 @@ def category_probabilities(values, bounds, boundary_val_cat='outer',
         category_counts[category - 1] += 1
     
     if return_counts:
-        return category_counts
+        return [int(val) for val in category_counts]
     else:
         category_probs = [val / num_of_vals for val in category_counts]
         return category_probs
