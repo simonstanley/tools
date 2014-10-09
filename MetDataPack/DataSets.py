@@ -708,18 +708,34 @@ class IssuedForecastData(object):
     """
     Class for retrieving forecast and observation data for the coming forecast 
     period.
+    
+    Args:
+    
+    * variable: string 
+        Specify the variable, 't2m' for air temperature at 2 metres or 'precip'
+        for precipitation.
+     
+    * period: string:
+        Specify the period type of the forecast, either 'mon' for the monthly 
+        or 'seas' for the seasonal (3 months).
+    
+    * iss_month: string
+        Specify the month the forecast was issued (not the month of the 
+        forecast), this is the month before the first forecasted month. Use the
+        first 3 letters of the month e.g. 'Jan' or 'Feb'.
+    
+     * iss_year: integer
+         Specify the year the forecast was issued, this is the year of the 
+         iss_month, not the year of the forecast period (if different).
      
     """
     def __init__(self, variable, period, iss_month, iss_year):
         self.variable  = check(variable, VARS)
         self.period    = check(period, PERS)
-        self.iss_month = check(iss_month, MONS)
+        self.iss_month = check(iss_month.title(), MONS)
         self.iss_year  = iss_year
             
     def _create_filename(self, modified):
-        """
-        
-        """
         if modified:
             adjusted = '_adj%s' % self.period
         else:
@@ -784,6 +800,7 @@ class IssuedForecastData(object):
 
     def _obs_from_file_load(self):
         """
+        Load observation data from data files.
         
         """
         filename = self._create_filename(modified=False)
@@ -798,7 +815,7 @@ class IssuedForecastData(object):
 
     def _obs_from_ncic_load(self, years, region='UK'):
         """
-        Load observation data.
+        Load observation data directly from NCIC pages.
         
         Kwargs:
         

@@ -170,8 +170,8 @@ def colour_map(colours, match_colour=None, match_value=None, dmin=None,
         if dmin is None or dmax is None:
             assert data is not None, 'To scale the colour map, data or data '\
             'minimum and maximum must be provided.'
-            dmin = min(data)
-            dmax = max(data)
+            dmin = numpy.min(data)
+            dmax = numpy.max(data)
         else:
             assert dmin is not None and dmax is not None, 'Both dmin and dmax'\
             ' must be provided.'

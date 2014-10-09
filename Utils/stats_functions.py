@@ -389,20 +389,25 @@ class ProbabilityAccuracyScores(object):
         colour_index = [int(round(val)) 
                         for val in numpy.linspace(0, 256, len(categories))]
         plt.figure()
-        for i, (hit_rates, fa_rates) in enumerate(zip(all_hit_rates, 
-                                                    all_false_alarm_rates)):
-            plt.plot(fa_rates, hit_rates, 'o-', color=cmap(colour_index[i]))
+        legend_labels = []
+        for i, (hit_rates, fa_rates, ROC_score, category) in enumerate(
+                                                         zip(
+                                                         all_hit_rates, 
+                                                         all_false_alarm_rates,
+                                                         ROC_scores,
+                                                         categories)):
+            if hit_rates is not None and fa_rates is not None:
+                plt.plot(fa_rates, hit_rates, 'o-', 
+                         color=cmap(colour_index[i]))
+                label= 'Category {cat} = {score}'.format(cat=category,
+                                                         score=round(ROC_score,
+                                                                     3))
+                legend_labels.append(label)
             
         plt.xlabel('False Alarm Rate')
         plt.ylabel('Hit Rate')
         plt.title('ROC Curves')
-        legend_labels = []
-        for ROC_score, category in zip(ROC_scores, categories):
-            label= 'Category {cat} = {score}'.format(cat=category,
-                                                     score=round(ROC_score, 3))
-            legend_labels.append(label)
-        legend_labels = tuple(legend_labels)
-        plt.legend(legend_labels,'lower right', fontsize='small', 
+        plt.legend(tuple(legend_labels),'lower right', fontsize='small', 
                    title='ROC Scores')
         plt.plot([0,1], [0,1], 'k--')
         plt.grid()

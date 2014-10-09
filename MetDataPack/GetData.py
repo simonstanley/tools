@@ -925,6 +925,8 @@ class CubeData(_DataHandler):
         """
         Calculate the analysis over time.
 
+        Args:
+
         * method: string
             Specify the name of the iris.analysis method.
 
@@ -952,6 +954,8 @@ class CubeData(_DataHandler):
     def area_analysis(self, method='MEAN'):
         """
         Calculate the spatial analysis.
+        
+        Args:
 
         * method: string
             Specify the name of the iris.analysis method.
