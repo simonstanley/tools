@@ -724,16 +724,23 @@ class IssuedForecastData(object):
         forecast), this is the month before the first forecasted month. Use the
         first 3 letters of the month e.g. 'Jan' or 'Feb'.
     
-     * iss_year: integer
-         Specify the year the forecast was issued, this is the year of the 
-         iss_month, not the year of the forecast period (if different).
-     
+    * iss_year: integer
+        Specify the year the forecast was issued, this is the year of the 
+        iss_month, not the year of the forecast period (if different).
+    
+    Kwargs:
+    
+    * missing_val: float or integer
+         Specify the value used if data is missing.
+         
     """
-    def __init__(self, variable, period, iss_month, iss_year):
-        self.variable  = check(variable, VARS)
-        self.period    = check(period, PERS)
+    def __init__(self, variable, period, iss_month, iss_year, 
+                  missing_val=99999.):
+        self.variable  = check(variable.lower(), VARS)
+        self.period    = check(period.lower(), PERS)
         self.iss_month = check(iss_month.title(), MONS)
         self.iss_year  = iss_year
+        self.missing_val = missing_val
             
     def _create_filename(self, modified):
         if modified:
@@ -746,101 +753,100 @@ class IssuedForecastData(object):
                                              V=self.variable,
                                              X=adjusted)
     
-    def _read_file(self, filename):
+    def _get_index_of_split(self, filename):
         """
         Read through the file to establish where monthly data ends and seasonal
-        data begins. This break is where the line starts with the letter instead of
-        a number. Used for raw data only.
+        data begins. This break is where the line starts with a letter instead 
+        of a number. Return the index of the first data value after the split.
+        Used for raw data only.
         
         """
-        with open(filename) as f:
-            content = f.readlines()
-        
-        index = []
-        for i in range(len(content)):
-            if content[i][0].isalpha():
-                index.append(i)
-        return index[-1]
+        text_line_numbers = []
+        with open(filename) as open_file:
+            for i, line in enumerate(open_file):
+                if line[0].isalpha():
+                    text_line_numbers.append(i)
+        # The index required is at the text line furthest down the file. The 
+        # text lines are later removed therefore the required index is the last
+        # text line number minus the number of other text lines in the file.
+        return text_line_numbers[-1] - len(text_line_numbers[:-1])
 
-    def _sort(self, data):
+    def _seperate_data(self, all_data, split_index):
         """
         Separate the raw data into monthly and seasonal data using the given
         index.
         
         """
-        month = data[0][:data[1]-1]
-        season = data[0][data[1]-1:]
-        month = filter(lambda val: val != 99999, month)
-        season = filter(lambda val: val != 99999, season)
-        return month, season
+        monthly  = all_data[:split_index]
+        seasonal = all_data[split_index:]
+        monthly  = filter(lambda val: val != self.missing_val, monthly)
+        seasonal = filter(lambda val: val != self.missing_val, seasonal)
+        return monthly, seasonal
     
-    def _raw_data_load(self, filename, col=4):
+    def _raw_data_load(self, col=4):
         """
-        Load the raw data and return it with the index of where the seasonal
-        data begins.
+        Both monthly and seasonal data is contained in the same file. Load the
+        the whole file and extract the data for the required period.
+        The col is the column within the file, default is the column containing
+        forecast data. The file also contains climatology data.
         
         """
-        index = self._read_file(filename)
-        data = numpy.genfromtxt(filename, delimiter='\t', usecols=col, 
-                                invalid_raise=False, filling_values=99999)
-        return (list(data), index)
+        filename = self._create_filename(modified=False)
+        # Get the index (line number) which splits the monthly and seasonal 
+        # data.
+        split_index = self._get_index_of_split(filename)
+        all_data = numpy.genfromtxt(filename, delimiter='\t', usecols=col, 
+                                    invalid_raise=False, filling_values=self.missing_val)
+        monthly, seasonal = self._seperate_data(all_data, split_index)
+        if self.period == 'mon':
+            return monthly
+        else:
+            return seasonal
     
-    def _mod_data_load(self, filename, col=3):
+    def _mod_data_load(self, col=3):
         """
         Load the modified data.
         
         """
+        filename = self._create_filename(modified=True)
         data = numpy.genfromtxt(filename, delimiter='\t', usecols=col, 
-                                skiprows=2, filling_values=99999)
-        data_fin = []
-        for i in data:
-            if i != 99999:
-                data_fin.append(i)
-        return data_fin
+                                skiprows=2, filling_values=self.missing_val)
+        return filter(lambda val: val != self.missing_val, data)
 
     def _obs_from_file_load(self):
         """
-        Load observation data from data files.
+        Load the observation data from the raw data file.
         
         """
-        filename = self._create_filename(modified=False)
-        # Original data files contain both monthly and seasonal data.
-        all_data = self._raw_data_load(filename, col=2)
-        monthly, seasonal = self._sort(all_data)
-        if self.period == 'mon':
-            data = monthly
-        else:
-            data = seasonal
-        return data
+        return self._raw_data_load(col=2)
 
-    def _obs_from_ncic_load(self, years, region='UK'):
+    def _obs_from_ncic_load(self, years, region):
         """
         Load observation data directly from NCIC pages.
         
-        Kwargs:
-        
-        * region: string
-            Region with the UK defined by NCIC. Default is UK.
-        
-        
         """
+        # Set up the variables to load NCIC data.
         if self.variable == 't2m':
             variable = 'temp'
-            method = 'MEAN'
+            method   = 'MEAN'
         elif self.variable == 'precip':
             variable = self.variable
-            method = 'SUM'
-        this_month = MONS.index(self.iss_month)
+            method   = 'SUM'
+            
+        iss_month_index = MONS.index(self.iss_month)
         if self.period == 'mon':
-            # Add 2, 1 to adjust index, 1 cause we look at month ahead.
-            adjusted_months = [this_month + 2]
+            # Add 2, 1 to adjust the index to a month number and 1 because we
+            # look at month ahead.
+            fcst_months = [iss_month_index + 2]
         elif self.period == 'seas':
-            adjusted_months = range(this_month + 2, this_month + 5)
+            fcst_months = range(iss_month_index + 2, iss_month_index + 5)
+        # fcst_months can have values over 12, these must be sorted.
         months = []
-        for x in adjusted_months:
-            if x > 12:
-                x -= 12
-            months.append(x)
+        for month_num in fcst_months:
+            if month_num > 12:
+                month_num -= 12
+            months.append(month_num)
+            
         ncic = NCICTextData(variable, months, years, region=region,
                             months_are_bounds=False)
         return ncic.analysis(method)
@@ -877,17 +883,10 @@ class IssuedForecastData(object):
             numpy array
         
         """
-        filename = self._create_filename(modified)
         if modified:
-            data = self._mod_data_load(filename)
+            data = self._mod_data_load()
         else:
-            # Original data files contain both monthly and seasonal data.
-            all_data = self._raw_data_load(filename)
-            monthly, seasonal = self._sort(all_data)
-            if self.period == 'mon':
-                data = monthly
-            else:
-                data = seasonal
+            data = self._raw_data_load()
         return data
 
     def current_obs_load(self, region='UK'):
@@ -970,9 +969,9 @@ class IssuedForecastData(object):
     def save_data(self, data, dtype, modified=False, save=False, 
                    check_exists=True, print_data=False):
         """
-        Fill any missing members with 99999, check the file has not been 
-        updated already and save data to file. Note, this useful specifically 
-        for the operational verification work.
+        Fill any missing members with the set missing_val, check the file has 
+        not been updated already and save data to file. Note, this useful 
+        specifically for the operational verification work.
         
         Args:
         
@@ -1005,7 +1004,7 @@ class IssuedForecastData(object):
         if dtype == 'model':
             filename = self._get_savename('mod', modified)
             while len(data) < 42:
-                data.append(99999.)
+                data.append(self.missing_val)
             data_fin = ' '.join([str(x) for x in data])
         
         elif dtype == 'obs':
