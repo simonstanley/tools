@@ -550,25 +550,19 @@ class NCICData(ObservationData):
     * variable: string
         Run NCICData.print_variables() for available variables.
     
-    * dates: datetime or list of datetimes
-        Specify the dates to be loaded. If dates_are_bounds (see below) is 
-        True, all dates in between the min and max dates are loaded.
-        Note, If years are given (see below), the year of the dates is ignored. 
-        In this case only specify a single period e.g. 5/3/2014 - 10/4/2014, 
-        and this will be replicated for all given years (meaning 2014 is not
-        necessarily loaded unless specified in years argument). If years are 
-        not given then the exact dates are loaded.
+    * months: list
+        List of month numbers
         
     * years: list of integers
         Specify the years to be loaded. If years_bounds (see below) is True, 
         all years in between the max and min years are loaded. Default is None
-        meaning only the dates given (see above) are loaded.
+        meaning all years are loaded.
     
     * area_bounds: list of 4 floats or integers
         Specify the upper and lower bounds in the x and y direction. See 
         area_bounds_format for formatting. Default is None.
     
-    * dates_are_bounds: boolean
+    * months_are_bounds: boolean
         If True, all month numbers between the highest and lowest values given
         in months are taken. Default True.
     

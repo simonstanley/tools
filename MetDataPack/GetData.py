@@ -484,17 +484,19 @@ class _DataHandler(object):
         Returns:
             iris cube
             
-        """
+        """        
         try:
-            cube.coord(self.xy_coords[0]).guess_bounds()
-            cube.coord(self.xy_coords[-1]).guess_bounds()
-        except ValueError:
-            pass
+            if not cube.coord(self.xy_coords[0]).has_bounds():
+                cube.coord(self.xy_coords[0]).guess_bounds()
+                cube.coord(self.xy_coords[-1]).guess_bounds()
         except iris.exceptions.CoordinateNotFoundError:
             # If xycoords have been changed since load.
             self.xy_coords = get_xy_coords(cube)
-            cube.coord(self.xy_coords[0]).guess_bounds()
-            cube.coord(self.xy_coords[-1]).guess_bounds()
+            if not cube.coord(self.xy_coords[0]).has_bounds():
+                cube.coord(self.xy_coords[0]).guess_bounds()
+                cube.coord(self.xy_coords[-1]).guess_bounds()
+        except ValueError:
+            pass
         if 'longitude' in self.xy_coords[0] and \
            'latitude' in self.xy_coords[-1]:
             grid_areas = iris.analysis.cartography.area_weights(cube)
