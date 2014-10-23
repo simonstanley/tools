@@ -52,12 +52,56 @@ class Test_skill_score(unittest.TestCase):
         self.assertAlmostEqual(score, 0.5)
 
 
+class Test_pdf_probabilities(unittest.TestCase):
+    def test_probabilities(self):
+        pdf   = scipy.stats.gaussian_kde([1,2,3,4,5,6,7,8])                   
+        probs = pdf_probabilities(pdf, [4.5])
+        self.assertAlmostEqual(probs[0], 0.5)
+        self.assertAlmostEqual(probs[1], 0.5)
+
+
+class Test_pdf_percentile_boundaries(unittest.TestCase):
+    def test_boundaries(self):
+        pdf    = scipy.stats.gaussian_kde([1,2,3,4,5,6,7,8])                   
+        bounds = pdf_percentile_boundaries(pdf, 2)
+        self.assertEqual(bounds, [4.5])
+
+
+class Test_calculate_pdf_limits(unittest.TestCase):
+    def test_limits(self):
+        pdf        = scipy.stats.gaussian_kde([1,2,3,4,5,6,7,8])                   
+        dmin, dmax = calculate_pdf_limits(pdf)
+        self.assertAlmostEqual(dmin, -2.5)
+        self.assertAlmostEqual(dmax, 11.5)
+
+
 class Test_generate_pdf_values(unittest.TestCase):
     def test_pdf_vals(self):
         data = [5,6,7,8,9]
         pdf_vals, pdf_points = generate_pdf_values(data, levels=3)
         self.assertEqual(list(pdf_vals), [0.0066132171305349121, 0.19319522907583744, 0.0066132171305348904])
         self.assertEqual(list(pdf_points), [2.3333333333333339, 7.0000000000000009, 11.666666666666668])
+
+
+class Test_array_correlation(unittest.TestCase):
+    def setUp(self):
+        self.xarrays = []
+        self.yarrays = []
+        self.test_xvals = []
+        self.test_yvals = []
+        self.index = tuple(numpy.random.random_integers(0,3,2))
+        for _ in range(10):
+            xarray = numpy.random.rand(4,4)
+            yarray = numpy.random.rand(4,4)
+            self.xarrays.append(xarray)
+            self.yarrays.append(yarray)
+            self.test_xvals.append(xarray[self.index])
+            self.test_yvals.append(yarray[self.index])
+    
+    def test_correlations(self):
+        corr_array = array_correlation(self.xarrays, self.yarrays)
+        test_corr  = scipy.stats.pearsonr(self.test_xvals, self.test_yvals)[0]
+        self.assertEqual(test_corr, corr_array[self.index])
 
 
 class Test_ProbabilityAccuracyScores(unittest.TestCase):

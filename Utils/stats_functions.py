@@ -241,7 +241,116 @@ def skill_score(accuracy_score, reference_score, perfect_score):
     skill_score = (accuracy_score - reference_score) / \
                   (perfect_score  - reference_score)
     return skill_score
+
+def pdf_probabilities(pdf, bounds):
+    """
+    Calculate the area of the PDF in between each bound, hence the probability.
+
+    Args:
     
+    * pdf: instance of scipy.stats.gaussian_kde
+    
+    * bounds: list
+        A list of boundary values. These are automatically sorted into numeric 
+        order.
+
+    """
+    bounds.sort()
+    extended_boundaries = [-numpy.inf] + bounds
+    extended_boundaries.append(numpy.inf)
+    probs = []
+    for i in range(len(extended_boundaries) - 1):
+        probs.append(pdf.integrate_box_1d(extended_boundaries[i], extended_boundaries[i+1]))
+    return probs
+
+def pdf_percentile_boundaries(pdf, num_of_categories, accuracy_factor=50):
+    """
+    Estimate the boundary values when splitting a PDF in to equally sized 
+    areas.
+    
+    Args:
+    
+    * pdf: instance of scipy.stats.gaussian_kde
+    
+    * num_of_categories: integer
+        The number of equally sized areas the PDF is split into.
+    
+    Kwargs:
+    
+    * accuracy_factor: integer
+        The estimation is calculated using iteration, this value specifies how
+        many values to split the PDF into and iterate over. Therefore, the
+        higher the factor, the longer the calculation takes but the more 
+        accurate the returned values. Default is 50.
+    
+    Returns:
+        list of bounds
+    
+    """
+    dmin = numpy.min(pdf.dataset)
+    dmax = numpy.max(pdf.dataset)
+    x_vals = numpy.linspace(dmin, dmax, accuracy_factor)
+    
+    required_area_size = 1. / float(num_of_categories)
+    bounds = []
+    lower_bound = -numpy.inf
+    for i, x_val in enumerate(x_vals):        
+        this_area_size = pdf.integrate_box_1d(lower_bound, x_val)
+        if this_area_size > required_area_size:
+            upper_diff = this_area_size - required_area_size
+            lower_diff = required_area_size - \
+                         pdf.integrate_box_1d(lower_bound, x_vals[i-1])
+            total_diff = upper_diff + lower_diff
+            proportion_diff = upper_diff / total_diff
+            
+            val_diff = x_val - x_vals[i-1]
+            proportion_val_diff = val_diff * proportion_diff
+            adjusted_x_val = x_val - proportion_val_diff
+            bounds.append(adjusted_x_val)
+            if len(bounds) == num_of_categories - 1:
+                break
+            lower_bound = adjusted_x_val
+            
+    return bounds
+
+def calculate_pdf_limits(pdf, levels=50, range_limiter=20):
+    """
+    Calculate the values where the PDF stops. The range_limiter determines the 
+    value at which to cut the PDF outer limits. It is a proportional value not 
+    an actual value. The larger the given value the further out the extremes 
+    will be returned.
+
+    Args:
+    
+    * pdf: instance of scipy.stats.gaussian_kde
+
+    Kwargs:
+    
+    * levels : integer
+        This determines how many points are returned. If plotting, higher 
+        values lead to smoother plots.
+    
+    * range_limiter: scalar
+        This value is used to calculate the range of the PDF. A PDF function 
+        can take a while to converge to 0, so to calculate sensible stop and 
+        start points, some proportional value above 0 is calculated. The given
+        range_limiter value is used as factor to determine what that above 0 
+        value is. Simply, the higher the given value the wider the PDF limits.
+        See nested function calculate_pdf_limits for more details.
+
+    """
+    dmin = numpy.min(pdf.dataset)
+    dmax = numpy.max(pdf.dataset)
+    pdf_min = numpy.mean([pdf(dmin)[0], pdf(dmax)[0]]) / float(range_limiter)
+    # First calculate the appropriate step size given the data range and number
+    # of levels.
+    step_size = (dmax - dmin) / float(levels)
+    while pdf(dmin)[0] > pdf_min:
+        dmin -= step_size
+    while pdf(dmax)[0] > pdf_min:
+        dmax += step_size
+    return dmin, dmax
+
 def generate_pdf_values(data, levels=50, range_limiter=20, 
                           bandwidth='silverman', return_pdf=False):
     """
@@ -281,35 +390,54 @@ def generate_pdf_values(data, levels=50, range_limiter=20,
     Returns:
         PDF values, PDF points, PDF function (optional)
     
-    """
-    def calculate_pdf_limits(pdf, data, levels, range_limiter):
-        """
-        Calculate the values where the PDF stops. The range_limiter determines the 
-        value at which to cut the PDF outer limits. It is a proportional value not 
-        an actual value. The larger the given value the further out the extremes 
-        will be returned.
-            
-        """
-        dmin = numpy.min(data)
-        dmax = numpy.max(data)
-        pdf_min = numpy.mean([pdf(dmin)[0], pdf(dmax)[0]]) / float(range_limiter)
-        # First calculate the appropriate step size given the data range and number
-        # of levels.
-        step_size = (dmax - dmin) / float(levels)
-        while pdf(dmin)[0] > pdf_min:
-            dmin -= step_size
-        while pdf(dmax)[0] > pdf_min:
-            dmax += step_size
-        return dmin, dmax
-    
+    """    
     # Generate kernel density estimate (PDF)
     pdf = scipy.stats.gaussian_kde(data, bw_method=bandwidth)
-    dmin, dmax = calculate_pdf_limits(pdf, data, levels, range_limiter)
+    dmin, dmax = calculate_pdf_limits(pdf, levels, range_limiter)
     pdf_points = numpy.linspace(dmin, dmax, levels)
     if return_pdf:
         return pdf(pdf_points), pdf_points, pdf
     else:
         return pdf(pdf_points), pdf_points
+
+def array_correlation(x, y, method='pearson'):
+    """
+    Calculate the correlation between each matching element of the arrays in x 
+    and y. Note, x and y must be identical in shape.
+    
+    Args:
+    
+    * x and y: List of arrays
+    
+    Kwargs:
+    
+    * method: 'pearson' or 'spearman'
+        Pearson's correlation or Spearman's ranked correlation.
+    
+    Returns:
+        Array of correlation values for corresponding elements.
+    
+    """
+    assert method in ['pearson', 'spearman'], 'Invalid method %s.' % method
+    x = numpy.ma.masked_array(x)
+    y = numpy.ma.masked_array(y)
+    assert x.shape[0] == y.shape[0], 'x and y must contain the same number of'\
+    ' arrays.'
+    assert x.shape[1:] == y.shape[1:], 'All arrays in x and y must be the '\
+    'same shape.'
+    
+    if method == 'pearson':
+        corr_method = scipy.stats.pearsonr
+    elif method == 'spearman':
+        corr_method = scipy.stats.spearmanr
+    
+    correlation_array = numpy.empty(x.shape[1:])
+    for index in numpy.ndindex(x.shape[1:]):
+        array_index = tuple( [slice(None)] + list(index) )
+        element_corr = corr_method(x[array_index], y[array_index])[0]
+        correlation_array[index] = element_corr
+    
+    return numpy.ma.masked_invalid(correlation_array)
 
 class ProbabilityAccuracyScores(object):
     """
@@ -362,32 +490,15 @@ class ProbabilityAccuracyScores(object):
         self.num_of_categories = len(self.categories)
 
     def _ROC_plot(self, all_hit_rates, all_false_alarm_rates, ROC_scores,
-                   categories, colours):
+                   categoriy_names, title, colours, save):
         """
         Plot the ROC curves.
-        
-        Args:
-        
-        * all_hit_rates: list
-            List of the lists of hit rates for each category.
-        
-        * all_false_alarm_rates: list
-            List of the lists of false alarm rates for each category.
-        
-        * ROC_scores: list
-            List of the ROC scores for each category.
-        
-        * categories: list
-            List of the category names.
-        
-        * colours: list
-            List of the colours from which to create a colour map across each
-            category plot.
         
         """
         cmap = LinearSegmentedColormap.from_list('cmap', colours)
         colour_index = [int(round(val)) 
-                        for val in numpy.linspace(0, 256, len(categories))]
+                        for val in numpy.linspace(0, 256, 
+                                                  len(categoriy_names))]
         plt.figure()
         legend_labels = []
         for i, (hit_rates, fa_rates, ROC_score, category) in enumerate(
@@ -395,23 +506,29 @@ class ProbabilityAccuracyScores(object):
                                                          all_hit_rates, 
                                                          all_false_alarm_rates,
                                                          ROC_scores,
-                                                         categories)):
+                                                         categoriy_names)):
             if hit_rates is not None and fa_rates is not None:
                 plt.plot(fa_rates, hit_rates, 'o-', 
                          color=cmap(colour_index[i]))
-                label= 'Category {cat} = {score}'.format(cat=category,
-                                                         score=round(ROC_score,
-                                                                     3))
+                label= '{cat} = {score}'.format(cat=category,
+                                                score=round(ROC_score,
+                                                3))
                 legend_labels.append(label)
             
         plt.xlabel('False Alarm Rate')
         plt.ylabel('Hit Rate')
-        plt.title('ROC Curves')
+        if title is not None:
+            plt.title(title)
+        else:
+            plt.title('ROC Curves')
         plt.legend(tuple(legend_labels),'lower right', fontsize='small', 
                    title='ROC Scores')
         plt.plot([0,1], [0,1], 'k--')
         plt.grid()
-        plt.show()
+        if save is not None:
+            plt.savefig(save)
+        else:
+            plt.show()
 
     def _brier_score(self, ob_categories, category_probs):
         """
@@ -539,7 +656,8 @@ class ProbabilityAccuracyScores(object):
                                      split_categories)
 
     def ROC_score(self, num_of_thresholds=6, outer_categories_only=False, 
-                   plot=False, colours=['blue','green','red']):
+                   plot=False, title=None, category_names=None, 
+                   colours=['blue','green','red'], save=None):
         """
         Calculate the Relative operating characteristic score for each 
         category.
@@ -557,13 +675,26 @@ class ProbabilityAccuracyScores(object):
         * outer_categories_only: boolean
             If True, only the ROC scores for the lowest and highest categories
             are calculated (and plotted if required).
-            
+                
         * plot: boolean
-            Set True to plot and show the ROC curves. Default is False
+            Set True to plot and show the ROC curves. Default is False.
+
+        Note, all kwargs from here are only used if plot=True
+
+        * title: string
+            Specify a title for the ROC plot.
+
+        * category_names: list
+            Provide a list of category names. There must be the same number of
+            names as there are categories and they categories are labelled from
+            lowest to highest.
 
         * colours: list
             List of the colours from which to create a colour map for each
-            category plot. Note, only used when plot is True
+            category plot.
+
+        * save: string
+            If a string is given, the plot is saved (and not shown).
 
         Returns:
             list of ROC scores for each category.
@@ -614,8 +745,13 @@ class ProbabilityAccuracyScores(object):
             all_false_alarm_rates.append(false_alarm_rates)
             ROC_scores.append(ROC_score)
         if plot:
+            if category_names:
+                assert len(category_names) == len(categories), '%s '\
+                'category_names must be provided.' % len(categories)
+            else:
+                category_names = ['Category %s' % cat for cat in categories]
             self._ROC_plot(all_hit_rates, all_false_alarm_rates, ROC_scores,
-                           categories, colours)
+                           category_names, title, colours, save)
         return ROC_scores
 
 
@@ -757,7 +893,7 @@ class ArrayCategoryProbabilities(object):
         assert value_array.shape[1:] == array_shape, array_shape_err_message
         
         # For indexing the value array during calculation. 
-        self.indices = [i for i in numpy.ndindex(array_shape)]
+        self.indices = list(numpy.ndindex(array_shape))
         # numpy.vectorize runs the function once to check so start index on -1.
         self.indices_index = -1
         
