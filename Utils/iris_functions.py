@@ -2,6 +2,7 @@ import iris
 import numpy
 import datetime
 import re
+from iris.experimental.regrid import regrid_bilinear_rectilinear_src_and_grid
 
 def cube_time_converter(time, time_unit):
     """
@@ -201,7 +202,7 @@ def get_xy_coords(cube):
     * cube: iris cube
     
     Returns:
-        List of xy coordinates
+        List containing xy coordinates
     """
     return [cube.coord(axis='X', dim_coords=True), 
             cube.coord(axis='Y', dim_coords=True)]
@@ -699,3 +700,48 @@ def pad_coords(cubelist, dim_coord_names):
         new_cubes = newer_cubes[:]
 
     return new_cubes
+
+
+#-----To be tested/developed-----#
+def load_mask(mask_path):
+    """
+    Load mask file and make sure it has GeogCS coordinate system.
+    
+    """
+    mask = iris.load_cube(mask_path)
+    # Irrespective of the metadata in the files, we know both masks
+    # should be defined on WGS84.
+    geog = iris.coord_systems.GeogCS(6378137, 6356752)
+    mask.coord('latitude').coord_system = geog
+    mask.coord('longitude').coord_system = geog
+
+    # Ensure we have grid cell bounds.
+    mask.coord('latitude').guess_bounds()
+    mask.coord('longitude').guess_bounds()
+
+    return mask
+
+def apply_mask(cube, maskfile, keep_existing_mask=True):
+    """
+    Apply mask in maskfile to cube.
+    
+    """
+    mask = load_mask(maskfile)
+    xy_coords = get_xy_coords(cube)
+    xy_coord_names = [coord.name() for coord in xy_coords]
+    
+    masked_xy_slices = []
+    for xy_slice in cube.slices(xy_coord_names):
+        xy_slice = regrid_bilinear_rectilinear_src_and_grid(xy_slice, mask)
+        if xy_slice.data.shape != mask.data.shape:
+            mask.transpose([1,0])
+        # Make sure data is a masked array.
+        xy_slice.data = numpy.ma.array(xy_slice.data)
+        if keep_existing_mask:
+            xy_slice.data.mask = numpy.logical_or(xy_slice.data.mask, 
+                                                  mask.data.mask)
+        else:
+            xy_slice.data.mask = xy_slice.data.mask
+        masked_xy_slices.append(xy_slice)
+    cube = iris.cube.CubeList(masked_xy_slices).merge_cube()
+    return cube
