@@ -116,7 +116,7 @@ class Plot(object):
         Add colourbar to the figure and label with units.
         
         """
-        colorbar_axes = fig.add_axes([0.1, 0.05, 0.82, 0.03])
+        colorbar_axes = fig.add_axes([0.1, 0.1, 0.82, 0.03])
         cbar = plt.colorbar(plot, colorbar_axes, orientation='horizontal')
         if units and str(units) != 'unknown':
             cbar.set_label(units)
@@ -207,14 +207,15 @@ class Plot(object):
             
     def postage_plot(self, cubes, title='', filename=None, show=False, 
                        num_of_levels=15, label_mems=True, label_ref_dates=True, 
-                       rows_and_cols=None, figsize=(12,10), coastlines=True, 
-                       colourbar=True, **kwargs):
+                       labels=None, rows_and_cols=None, figsize=(12,10), 
+                       coastlines=True, colourbar=True, **kwargs):
         """
         Plot multiple maps.
         
         Args:
         
-        * cubes: iris cube or cubelist
+        * cubes: iris cube or cubelist        # We now have actual spatial data and a spatial "forecast" using the 
+        # climatology mapping method. Get the spatial difference.
             Cubes to be plotted. If a single cube is provided, it must contain 
             one or more x/y array realizations. If a cubelist is provided each
             cube must contain a single x/y array.
@@ -293,11 +294,14 @@ class Plot(object):
         for i, cube in enumerate(cubes):
             plt.subplot(rows, cols, i+1, projection=self.projection)
             mapplt = self._plot(cube, **kwargs)
-            title_str = self._postage_title(cube, label_mems, 
-                                            label_ref_dates)
-            plt.title(title_str, size='x-small')
+            if labels is not None:
+                title_str = labels[i]
+            else:
+                title_str = self._postage_title(cube, label_mems, 
+                                                label_ref_dates)
+            plt.title(title_str, size='small')
             if coastlines:
-                plt.gca().coastlines()
+                plt.gca().coastlines(resolution='50m')
         plt.suptitle(title, size='large')
         
         if colourbar:
