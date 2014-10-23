@@ -843,6 +843,11 @@ class IssuedForecastData(object):
             
         ncic = NCICTextData(variable, months, years, region=region,
                             months_are_bounds=False)
+        obs = ncic.analysis(method)
+        for ob, year in zip(obs, years):
+            if numpy.isnan(ob):
+                raise UserWarning('Observation for month(s) %s in the year '\
+                                  '%s, does not exist.' % (months, year))
         return ncic.analysis(method)
 
     def _get_savename(self, dtype, modified=False):
