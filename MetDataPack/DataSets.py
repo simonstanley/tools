@@ -729,11 +729,12 @@ class IssuedForecastData(object):
          
     """
     def __init__(self, variable, period, iss_month, iss_year, 
-                  missing_val=99999.):
+                  data_dir=ISSFCST_PATH, missing_val=99999.):
         self.variable  = check(variable.lower(), VARS)
         self.period    = check(period.lower(), PERS)
         self.iss_month = check(iss_month.title(), MONS)
         self.iss_year  = iss_year
+        self.data_dir  = data_dir
         self.missing_val = missing_val
             
     def _create_filename(self, modified):
@@ -741,7 +742,7 @@ class IssuedForecastData(object):
             adjusted = '_adj%s' % self.period
         else:
             adjusted = ''
-        return '{P}{M}{Y}_{V}{X}.dat'.format(P=ISSFCST_PATH,
+        return '{P}{M}{Y}_{V}{X}.dat'.format(P=self.data_dir,
                                              M=self.iss_month,
                                              Y=str(self.iss_year),
                                              V=self.variable,
@@ -937,7 +938,7 @@ class IssuedForecastData(object):
             return self._obs_from_ncic_load(clim_period, region)
         else:
             return self._obs_from_file_load()
-
+        
     def print_data(self, data, dtype, modified=False):
         """
         Used to print current data and all previous saved data in the save 
