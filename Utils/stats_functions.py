@@ -19,6 +19,91 @@ def rmse(x, y):
     """
     return numpy.sqrt(((numpy.array(x) - numpy.array(y)) ** 2).mean())
 
+def sum_of_squares(data):
+    """
+    Calculate the sum of squares for an array like.
+    
+    Args:
+    
+    * data: array like
+    
+    Returns:
+        float
+    
+    """
+    return numpy.sum([x**2 for x in data])
+
+def spread_data(data, scale):
+    """
+    Spread all the data points (from the mean) by the given scale.
+    
+    Args:
+    
+    * data: array like
+    
+    * scale: float
+    
+    Returns:
+        array like
+    
+    """
+    mean = numpy.mean(data)
+    spread_data = []
+    for val in data:
+        spread_data.append(((val - mean) * scale) + mean)
+    return spread_data
+
+def shift_data(data, shift):
+    """
+    Shift all data points by given amount.
+    
+    Args:
+    
+    * data: array like
+    
+    * shift: float
+    
+    Returns:
+        array like
+        
+    """
+    return numpy.array(data) + shift
+
+def blend_data(blend_data, fixed_data, blend):
+    """
+    Blend data towards fixed data using some crazy maths.
+    
+    Args:
+    
+    * blend_data: array like
+        Data to be blended.
+    
+    * fixed_data: array like
+        Data for which the blend_data is blended towards.
+    
+    * blend: float
+        Percentage value of blend.
+    
+    Returns:
+        array like
+    
+    """
+    fcst_mean = numpy.mean(blend_data)
+    fcst_std  = numpy.std(blend_data)
+    clim_mean = numpy.mean(fixed_data)
+    xbar_of_blend = (((100. - blend) * fcst_mean) + (blend * clim_mean)) / 100.
+    xbar_2n = (xbar_of_blend ** 2) * 100.
+    sx_2f = ((sum_of_squares(blend_data) * (100. - blend)) / len(blend_data)) \
+            + ((sum_of_squares(fixed_data) * blend) / len(fixed_data))
+    stdv_of_blend = ((sx_2f - xbar_2n) / 100.) ** 0.5
+    blended_data = []
+    for val in blend_data:
+        adjusted_val = (((val - fcst_mean) / fcst_std) * stdv_of_blend) + \
+                       xbar_of_blend
+        blended_data.append(adjusted_val)
+    
+    return blended_data
+
 def gerrity_score(contingency_table, see_scoring_weights=False):
     """
     Calculate the Gerrity score for a given contingency table. The table 
@@ -327,8 +412,7 @@ def calculate_pdf_limits(pdf, levels=50, range_limiter=20):
     Kwargs:
     
     * levels : integer
-        This determines how many points are returned. If plotting, higher 
-        values lead to smoother plots.
+        This determines the step size when calculating the limits.
     
     * range_limiter: scalar
         This value is used to calculate the range of the PDF. A PDF function 
