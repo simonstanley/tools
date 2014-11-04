@@ -7,6 +7,59 @@ from xml.etree.ElementTree import ElementTree
 import urllib2
 from urlparse import urlparse
 
+months_dict =  {"JAN" : {'month_number' : 1,
+                         'full_name'    : 'JANUARY',
+                         'days'         : 31},
+                "FEB" : {'month_number' : 2,
+                         'full_name'    : 'FEBRUARY',
+                         'days'         : 28},
+                "MAR" : {'month_number' : 3,
+                         'full_name'    : 'MARCH',
+                         'days'         : 31},
+                "APR" : {'month_number' : 4,
+                         'full_name'    : 'APRIL',
+                         'days'         : 30},
+                "MAY" : {'month_number' : 5,
+                         'full_name'    : 'MAY',
+                         'days'         : 31},
+                "JUN" : {'month_number' : 6,
+                         'full_name'    : 'JUNE',
+                         'days'         : 30},
+                "JUL" : {'month_number' : 7,
+                         'full_name'    : 'JULY',
+                         'days'         : 31},
+                "AUG" : {'month_number' : 8,
+                         'full_name'    : 'AUGUST',
+                         'days'         : 31},
+                "SEP" : {'month_number' : 9,
+                         'full_name'    : 'SEPTEMBER',
+                         'days'         : 30},
+                "OCT" : {'month_number' : 10,
+                         'full_name'    : 'OCTOBER',
+                         'days'         : 31},
+                "NOV" : {'month_number' : 11,
+                         'full_name'    : 'NOVEMBER',
+                         'days'         : 30},
+                "DEC" : {'month_number' : 12,
+                         'full_name'    : 'DECEMBER',
+                         'days'         : 31}}
+
+seasons_dict = {"JFM" : {'month_names' : ['JAN', 'FEB', 'MAR']},
+                "FMA" : {'month_names' : ['FEB', 'MAR', 'APR']},
+                "MAM" : {'month_names' : ['MAR', 'APR', 'MAY']},
+                "AMJ" : {'month_names' : ['APR', 'MAY', 'JUN']},
+                "MJJ" : {'month_names' : ['MAY', 'JUN', 'JUL']},
+                "JJA" : {'month_names' : ['JUN', 'JUL', 'AUG']},
+                "JAS" : {'month_names' : ['JUL', 'AUG', 'SEP']},
+                "ASO" : {'month_names' : ['AUG', 'SEP', 'OCT']},
+                "SON" : {'month_names' : ['SEP', 'OCT', 'NOV']},
+                "OND" : {'month_names' : ['OCT', 'NOV', 'DEC']},
+                "NDJ" : {'month_names' : ['NOV', 'DEC', 'JAN']},
+                "DJF" : {'month_names' : ['DEC', 'JAN', 'FEB']},
+                "ANN" : {'month_names' : ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 
+                                          'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 
+                                          'NOV', 'DEC']}}
+
 def iso_time_converter(time):
     """
     Convert time between datetime object and iso string format.
@@ -472,3 +525,215 @@ def search_directory(dir_path, look_in='', search_for=None, file_type='both',
                                  current_dir, full_name, hidden_files)
     results = searcher.search()    
     return results
+
+class Seasons(object):
+    """
+    Class for handling common seasonal date requirements.
+    
+    """
+    def __init__(self):
+        self.months  = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 
+                        'December']
+        self.seasons = ['JFM', 'FMA', 'MAM', 'AMJ', 'MJJ', 'JJA', 'JAS', 'ASO',
+                        'SON', 'OND', 'NDJ', 'DJF']
+    
+    @staticmethod
+    def _abbreviate_str(string, str_method='upper', abbreviation=3):
+        if abbreviation:
+            string = string[:abbreviation]
+        return getattr(string, str_method)()
+
+    def month_number(self, month_name):
+        """
+        Return the month number.
+        
+        Args:
+        
+        * month_name: string
+        
+        returns:
+            integer
+        
+        """
+        month_name = self._abbreviate_str(month_name)
+        month_dict = months_dict.get(month_name)
+        if month_dict:
+            return month_dict['month_number']
+        else:
+            raise UserWarning('"%s" is an invalid month name.' % month_name)
+        
+
+    def month_name(self, month_number, str_method='title', abbreviation=None):
+        """
+        Return the month name.
+        
+        Args:
+        
+        * month_number: integer
+        
+        Kwargs:
+        
+        * str_method: string
+            The string method name to apply to the string. Default is 'title' 
+            which returns capitalized month names.
+        
+        * abbreviation: None or integer
+            If an integer is provided, only the first given number of letters 
+            of the month names are returned.
+        
+        returns:
+            string
+        
+        """
+        for month_dict in months_dict.values():
+            if month_dict['month_number'] == month_number:
+                month_name = month_dict['full_name']
+                return self._abbreviate_str(month_name, str_method, 
+                                            abbreviation)
+        raise UserWarning('%s is an invalid month number.' % month_number)
+
+    def season_month_numbers(self, season):
+        """
+        Return the month numbers for the given season.
+        
+        Args:
+        
+        season: string
+            The name of a valid season.
+        
+        Returns:
+            list
+        
+        """
+        season = self._abbreviate_str(season, abbreviation=None)
+        month_numbers = []
+        season_dict = seasons_dict.get(season)
+        if season_dict:
+            for month in season_dict['month_names']:
+                month_numbers.append(months_dict[month]['month_number'])
+        else:
+            raise UserWarning('%s is an invalid season.' % season)
+        return month_numbers
+        
+    def season_month_names(self, season, str_method='title', 
+                             abbreviation=None):
+        """
+        Return the month names for a given season.
+        
+        Args:
+        
+        season: string or integer
+            Provide the name of a valid season or a month number.
+        
+        Kwargs:
+        
+        * str_method: string
+            The string method name to apply to the string. Default is 'title' 
+            which returns capitalized month names.
+        
+        * abbreviation: None or integer
+            If an integer is provided, only the first given number of letters 
+            of the month names are returned.
+        
+        Returns:
+            list
+        
+        """
+        season = self._abbreviate_str(season)
+        month_names = []
+        season_dict = seasons_dict.get(season)
+        if season_dict:
+            for month in season_dict['month_names']:
+                month_name = months_dict[month]['full_name']
+                month_name = self._abbreviate_str(month_name, str_method, 
+                                                  abbreviation)
+                month_names.append(month_name)
+        else:
+            # Check if given season is the name of a single month.
+            month_dict = months_dict.get(season)
+            if month_dict:
+                month_name = months_dict[season]['full_name']
+                month_name = self._abbreviate_str(month_name, str_method)
+                month_names.append(month_name)
+            else:
+                raise UserWarning('%s is an invalid season.' % season)
+        return month_names
+        
+    def add_months(self, start_month, months, start_year=None, 
+                    return_type='auto', **kwargs):
+        """
+        Add (or subtract) a number of months to a given season.
+        
+        Args:
+        
+        * start_month: string or integer
+            Specify the month name or number.
+        
+        * months: integer
+            Number of months to add (can be negative)
+            
+        Kwargs:
+        
+        * start_year: integer
+            If set the resulting year is returned (as last item in returned 
+            tuple).
+        
+        * return_type: 'auto', 'name', 'number', 'both'
+            Choose an option for how the resulting month should be returned. 
+            Default is 'auto', returning the same type as provided for 
+            start_month. Set to 'both' to return a tuple in the form 
+            (name, number).
+            
+        * str_method: string
+            The string method name to apply to the string. Default is 'title' 
+            which returns capitalized month names.
+        
+        * abbreviation: None or integer
+            If an integer is provided, only the first given number of letters 
+            of the month names are returned.
+        
+        Returns:
+            string, integer or tuple (depends on given key word arguments)
+        
+        """
+        invalid_month_mess = '%s is an invalid month.' % start_month
+        if type(start_month) == str:
+            if return_type == 'auto':
+                return_type = 'name'
+            start_month = self._abbreviate_str(start_month)
+            month_dict = months_dict.get(start_month)
+            if month_dict:
+                start_month = month_dict['month_number']
+            else:
+                raise UserWarning(invalid_month_mess)
+        
+        elif type(start_month) == int:
+            if return_type == 'auto':
+                return_type = 'number'
+            if start_month < 1 or start_month > 12:
+                raise UserWarning(invalid_month_mess)
+        
+        else:
+            raise UserWarning(invalid_month_mess)
+        
+        extra_months = months % 12
+        end_month_number = start_month + extra_months
+        if end_month_number > 12:
+            end_month_number -= 12
+        
+        result = []
+        if return_type in ['name', 'both']:
+            end_month_name = self.month_name(end_month_number, **kwargs)
+            result.append(end_month_name)
+        
+        if return_type in ['number', 'both']:
+            result.append(end_month_number)
+        
+        if start_year:
+            end = start_month + months
+            extra_years = (end - 1) // 12
+            result.append(start_year + extra_years)
+                    
+        return tuple(result)
+    

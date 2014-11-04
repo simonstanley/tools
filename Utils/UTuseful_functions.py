@@ -190,4 +190,58 @@ class Test_search_directory(unittest.TestCase):
                                    look_in='', 
                                    search_for=path_list[:-1])
         self.assertIn(path_list[-1], results)
-             
+
+
+class Test_Seasons(unittest.TestCase):
+    pass
+
+class Test__abbreviate_str(unittest.TestCase):        
+    def test_result(self):
+        result = Seasons._abbreviate_str('qwertyuiop', 
+                                         str_method='title', 
+                                         abbreviation=6)
+        self.assertEqual(result, 'Qwerty')
+    
+
+class Test_month_number(unittest.TestCase):
+    def test_result(self):
+        result = Seasons().month_number('November')
+        self.assertEqual(result, 11)
+
+
+class Test_month_name(unittest.TestCase):
+    def test_result(self):
+        result = Seasons().month_name(11)
+        self.assertEqual(result, 'November')
+
+
+class Test_season_month_numbers(unittest.TestCase):
+    def test_result(self):
+        result = Seasons().season_month_numbers('SON')
+        self.assertEqual(result, [9,10,11])
+    
+    
+class Test_season_month_names(unittest.TestCase):
+    def test_result(self):
+        result = Seasons().season_month_names('SON', 
+                                              abbreviation=3)
+        self.assertEqual(result, ['Sep', 'Oct', 'Nov'])
+    
+
+class Test_add_months(unittest.TestCase):
+    def test_add(self):
+        month, year = Seasons().add_months(start_month='sep', 
+                                           months=5,
+                                           start_year=2014,
+                                           return_type='name')
+        self.assertEqual(month, 'February')
+        self.assertEqual(year, 2015)
+        
+    def test_subtract(self):
+        month, year = Seasons().add_months(start_month='sep', 
+                                           months=-10,
+                                           start_year=2014,
+                                           return_type='name')
+        self.assertEqual(month, 'November')
+        self.assertEqual(year, 2013)
+        
