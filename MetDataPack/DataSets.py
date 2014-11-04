@@ -21,11 +21,8 @@ ERA_I_PATH    = '/project/seasonal/frgo/'
 ISSFCST_PATH  = '/home/h02/frgo/TEST/jhirst_plots/new_caboff_plots/plots_N216/'
 ISS_SAVEFILE  = '/net/home/h02/sstanley/Documents/data/forecast_data/'
 
-VARS = ['t2m', 'precip']
-PERS = ['seas', 'mon']
 MONS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
 
 ncic_txt_var_dict = {'Temp'     : {'name'  : 'Tmean', 
                                    'units' : 'celsius',
@@ -730,8 +727,8 @@ class IssuedForecastData(object):
     """
     def __init__(self, variable, period, iss_month, iss_year, 
                   data_dir=ISSFCST_PATH, missing_val=99999.):
-        self.variable  = check(variable.lower(), VARS)
-        self.period    = check(period.lower(), PERS)
+        self.variable  = check(variable.lower(), ['t2m', 'precip'])
+        self.period    = check(period.lower(), ['seas', 'mon'])
         self.iss_month = check(iss_month.title(), MONS)
         self.iss_year  = iss_year
         self.data_dir  = data_dir
