@@ -144,9 +144,6 @@ def change_zeroth_hour(dates):
     return updated_dates
 
 def run_load_file(args):
-    """
-    
-    """
     return _DataHandler._load_file(*args)
     
 
