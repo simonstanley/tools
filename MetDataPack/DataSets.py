@@ -754,10 +754,14 @@ class IssuedForecastData(object):
         
         """
         text_line_numbers = []
-        with open(filename) as open_file:
-            for i, line in enumerate(open_file):
-                if line[0].isalpha():
-                    text_line_numbers.append(i)
+        try:
+            with open(filename) as open_file:
+                for i, line in enumerate(open_file):
+                    if line[0].isalpha():
+                        text_line_numbers.append(i)
+        except IOError:
+            raise UserWarning("Can't find raw forecast data issued %s %s" 
+                              % (self.iss_month, self.iss_year))
         # The index required is at the text line furthest down the file. The 
         # text lines are later removed therefore the required index is the last
         # text line number minus the number of other text lines in the file.
@@ -801,8 +805,13 @@ class IssuedForecastData(object):
         
         """
         filename = self._create_filename(modified=True)
-        data = numpy.genfromtxt(filename, delimiter='\t', usecols=col, 
-                                skiprows=2, filling_values=self.missing_val)
+        try:
+            data = numpy.genfromtxt(filename, delimiter='\t', usecols=col, 
+                                    skiprows=2, 
+                                    filling_values=self.missing_val)
+        except IOError:
+            raise UserWarning("Can't find modified forecast data issued %s %s" 
+                              % (self.iss_month, self.iss_year))
         return filter(lambda val: val != self.missing_val, data)
 
     def _obs_from_file_load(self):
