@@ -544,6 +544,57 @@ class Seasons(object):
             string = string[:abbreviation]
         return getattr(string, str_method)()
 
+    def _add_months(self, start_month, months, start_year, return_type, 
+                      **kwargs):
+        """
+        Add (or subtract) a number of months to a given season.
+                
+        """
+        invalid_month_mess = '%s is an invalid period.' % start_month
+        if type(start_month) == str:
+            if return_type == 'auto':
+                return_type = 'name'
+            start_month = self._abbreviate_str(start_month)
+            month_dict = months_dict.get(start_month)
+            if month_dict:
+                start_month = month_dict['month_number']
+            else:
+                raise UserWarning(invalid_month_mess)
+        
+        elif type(start_month) == int:
+            if return_type == 'auto':
+                return_type = 'number'
+            if start_month < 1 or start_month > 12:
+                raise UserWarning(invalid_month_mess)
+        
+        else:
+            raise UserWarning(invalid_month_mess)
+        
+        extra_months = months % 12
+        end_month_number = start_month + extra_months
+        if end_month_number > 12:
+            end_month_number -= 12
+        
+        result = []
+        if return_type in ['name', 'both']:
+            end_month_name = self.month_name(end_month_number, **kwargs)
+            result.append(end_month_name)
+        
+        if return_type in ['number', 'both']:
+            result.append(end_month_number)
+        
+        if start_year:
+            end = start_month + months
+            extra_years = (end - 1) // 12
+            result.append(start_year + extra_years)
+        
+        if len(result) == 1:
+            result = result[0]
+        else:
+            result = tuple(result)
+        
+        return result
+
     def month_number(self, month_name):
         """
         Return the month number.
@@ -564,13 +615,15 @@ class Seasons(object):
             raise UserWarning('"%s" is an invalid month name.' % month_name)
         
 
-    def month_name(self, month_number, str_method='title', abbreviation=None):
+    def month_name(self, month, str_method='title', abbreviation=None):
         """
         Return the month name.
         
         Args:
         
-        * month_number: integer
+        * month: integer or string
+            If integer is given, the month name is returned. A string can be 
+            provided if name formatting is required.
         
         Kwargs:
         
@@ -586,12 +639,24 @@ class Seasons(object):
             string
         
         """
-        for month_dict in months_dict.values():
-            if month_dict['month_number'] == month_number:
-                month_name = month_dict['full_name']
-                return self._abbreviate_str(month_name, str_method, 
-                                            abbreviation)
-        raise UserWarning('%s is an invalid month number.' % month_number)
+        if type(month) == int:
+            for month_dict in months_dict.values():
+                if month_dict['month_number'] == month:
+                    month_name = month_dict['full_name']
+                    return self._abbreviate_str(month_name, str_method, 
+                                                abbreviation)
+            raise UserWarning('%s is an invalid month number.' % month)
+        
+        elif type(month) == str:
+            month_key = self._abbreviate_str(month, 'upper', 3)
+            month_dict = months_dict.get(month_key)
+            if month_dict:
+                    month_name = month_dict['full_name']
+                    return self._abbreviate_str(month_name, str_method, 
+                                                abbreviation)
+            else:
+                raise UserWarning('"%s" is an invalid month name.' % month)
+            
 
     def season_month_numbers(self, season):
         """
@@ -660,15 +725,15 @@ class Seasons(object):
                 raise UserWarning('%s is an invalid season.' % season)
         return month_names
         
-    def add_months(self, start_month, months, start_year=None, 
+    def add_months(self, start_period, months, start_year=None, 
                     return_type='auto', **kwargs):
         """
         Add (or subtract) a number of months to a given season.
         
         Args:
         
-        * start_month: string or integer
-            Specify the month name or number.
+        * start_period: string or integer
+            Specify the month or season, name or number.
         
         * months: integer
             Number of months to add (can be negative)
@@ -697,43 +762,35 @@ class Seasons(object):
             string, integer or tuple (depends on given key word arguments)
         
         """
-        invalid_month_mess = '%s is an invalid month.' % start_month
-        if type(start_month) == str:
-            if return_type == 'auto':
-                return_type = 'name'
-            start_month = self._abbreviate_str(start_month)
-            month_dict = months_dict.get(start_month)
-            if month_dict:
-                start_month = month_dict['month_number']
+        if seasons_dict.get(start_period):
+            adjusted_season = ''
+            # Use _add_months to adjust the first month of the given 
+            # season.
+            first_month = seasons_dict[start_period]['month_names'][0]
+            result = self._add_months(first_month, months, start_year, 
+                                      return_type='name', str_method='upper')
+            if type(result) == tuple:
+                adjusted_first_month = result[0]
+                adjusted_year = result[-1]
             else:
-                raise UserWarning(invalid_month_mess)
-        
-        elif type(start_month) == int:
-            if return_type == 'auto':
-                return_type = 'number'
-            if start_month < 1 or start_month > 12:
-                raise UserWarning(invalid_month_mess)
-        
+                adjusted_first_month = result
+                adjusted_year = None
+            adjusted_season += adjusted_first_month[0]
+            for extra_months in [1,2]:
+                # Calculate the next two months after the adjusted first 
+                # month.
+                adjusted_season += self._add_months(adjusted_first_month, 
+                                                    extra_months,
+                                                    start_year=None,
+                                                    return_type='name', 
+                                                    str_method='upper',
+                                                    abbreviation=1)
+            if adjusted_year is None:
+                result = adjusted_season
+            else:
+                result = (adjusted_season, adjusted_year)
+            return result
+                
         else:
-            raise UserWarning(invalid_month_mess)
-        
-        extra_months = months % 12
-        end_month_number = start_month + extra_months
-        if end_month_number > 12:
-            end_month_number -= 12
-        
-        result = []
-        if return_type in ['name', 'both']:
-            end_month_name = self.month_name(end_month_number, **kwargs)
-            result.append(end_month_name)
-        
-        if return_type in ['number', 'both']:
-            result.append(end_month_number)
-        
-        if start_year:
-            end = start_month + months
-            extra_years = (end - 1) // 12
-            result.append(start_year + extra_years)
-                    
-        return tuple(result)
-    
+            return self._add_months(start_period, months, start_year, 
+                                    return_type, **kwargs)
