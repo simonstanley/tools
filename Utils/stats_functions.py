@@ -574,44 +574,65 @@ class ProbabilityAccuracyScores(object):
         self.num_of_categories = len(self.categories)
 
     def _ROC_plot(self, all_hit_rates, all_false_alarm_rates, ROC_scores,
-                   categoriy_names, title, colours, save):
+                   title, categoriy_names, colours, save, show, axes):
         """
         Plot the ROC curves.
+        
+        """
+        self._plot('ROC', all_false_alarm_rates, all_hit_rates, ROC_scores, 
+                   title, 'False alarm rate', 'Hit rate', 'ROC scores', 
+                   categoriy_names, colours, save, show, axes)
+
+    def _reliability_plot(self, all_fcst_probs, all_obs_freqs, biases,
+                            title, categoriy_names, colours, save, show, axes):
+        """
+        Plot the reliability diagram.
+        
+        """
+        self._plot('Reliability', all_fcst_probs, all_obs_freqs, biases, title, 
+                   'Forecast probabilities', 'Observed frequency', 'Biases', 
+                   categoriy_names, colours, save, show, axes)
+
+    def _plot(self, plot_type, all_x_vals, all_y_vals, scores, title, xlab, 
+              ylab, legend_title, categoriy_names, colours, save, show, axes):
+        """
         
         """
         cmap = LinearSegmentedColormap.from_list('cmap', colours)
         colour_index = [int(round(val)) 
                         for val in numpy.linspace(0, 256, 
                                                   len(categoriy_names))]
-        plt.figure()
+        if axes is None:
+            plt.figure()
+            ax = plt.axes()
+        else:
+            ax = axes
         legend_labels = []
-        for i, (hit_rates, fa_rates, ROC_score, category) in enumerate(
-                                                         zip(
-                                                         all_hit_rates, 
-                                                         all_false_alarm_rates,
-                                                         ROC_scores,
-                                                         categoriy_names)):
-            if hit_rates is not None and fa_rates is not None:
-                plt.plot(fa_rates, hit_rates, 'o-', 
-                         color=cmap(colour_index[i]))
+        for i, (x_vals, y_vals, score, category) in enumerate(
+                                                    zip(all_x_vals, 
+                                                        all_y_vals,
+                                                        scores,
+                                                        categoriy_names)):
+            if x_vals is not None and y_vals is not None:
+                ax.plot(x_vals, y_vals, 'o-', 
+                        color=cmap(colour_index[i]))
                 label= '{cat} = {score}'.format(cat=category,
-                                                score=round(ROC_score,
+                                                score=round(score,
                                                 3))
                 legend_labels.append(label)
-            
-        plt.xlabel('False Alarm Rate')
-        plt.ylabel('Hit Rate')
+        plt.xlabel(xlab)
+        plt.ylabel(ylab)        
         if title is not None:
             plt.title(title)
         else:
-            plt.title('ROC Curves')
-        plt.legend(tuple(legend_labels),'lower right', fontsize='small', 
-                   title='ROC Scores')
-        plt.plot([0,1], [0,1], 'k--')
+            plt.title('%s Plot' % plot_type)
+        plt.legend(tuple(legend_labels),'lower right', fontsize='x-small', 
+                   title=legend_title)
+        ax.plot([0,1], [0,1], 'k--')
         plt.grid()
-        if save is not None:
+        if save:
             plt.savefig(save)
-        else:
+        if show:
             plt.show()
 
     def _brier_score(self, ob_categories, category_probs):
@@ -741,9 +762,10 @@ class ProbabilityAccuracyScores(object):
 
     def ROC_score(self, num_of_thresholds=6, outer_categories_only=False, 
                    plot=False, title=None, category_names=None, 
-                   colours=['blue','green','red'], save=None):
+                   colours=['blue','green','red'], save=None, show=False,
+                   axes=None):
         """
-        Calculate the Relative operating characteristic score for each 
+        Calculate the relative operating characteristic score for each 
         category.
         
         Kwargs:
@@ -766,7 +788,7 @@ class ProbabilityAccuracyScores(object):
         Note, all kwargs from here are only used if plot=True
 
         * title: string
-            Specify a title for the ROC plot.
+            Specify a title for the plot.
 
         * category_names: list
             Provide a list of category names. There must be the same number of
@@ -778,8 +800,14 @@ class ProbabilityAccuracyScores(object):
             category plot.
 
         * save: string
-            If a string is given, the plot is saved (and not shown).
-
+            Specify a file path string to save the plot.
+        
+        * show: boolean
+            Specify whether to show the plot.
+        
+        * axes: matplotlib.pyplot.axes instance
+            If given, the plot if done on this axes.
+        
         Returns:
             list of ROC scores for each category.
         
@@ -834,11 +862,117 @@ class ProbabilityAccuracyScores(object):
                 'category_names must be provided.' % len(categories)
             else:
                 category_names = ['Category %s' % cat for cat in categories]
-            self._ROC_plot(all_hit_rates, all_false_alarm_rates, ROC_scores,
-                           category_names, title, colours, save)
+            self._ROC_plot(all_hit_rates, all_false_alarm_rates, ROC_scores, 
+                           title, category_names, colours, save, show, axes)
         return ROC_scores
 
+    def reliability(self, num_of_bins=10, outer_categories_only=False, 
+                     plot=False, title=None, category_names=None, 
+                     colours=['blue','green','red'], save=None, show=False, 
+                     axes=None):
+        """
+        Calculate the reliability of the forecasts. This is best assessed with
+        a reliability plot (set plot to True). The overall forecasting biases 
+        are returned, values under and over 1 represent under and over 
+        confidence respectively.
 
+        Kwargs:
+        
+        * num_of_bins: integer
+            The number of bins to split 0 to 1 into. Forecast probabilities are
+            then placed into the corresponding bins.
+        
+        * outer_categories_only: boolean
+            If True, only the reliability for the lowest and highest categories
+            are calculated (and plotted if required).
+                
+        * plot: boolean
+            Set True to plot and show the reliability diagram. Default is 
+            False.
+
+        Note, all kwargs from here are only used if plot=True
+
+        * title: string
+            Specify a title for the plot.
+
+        * category_names: list
+            Provide a list of category names. There must be the same number of
+            names as there are categories and they categories are labelled from
+            lowest to highest.
+
+        * colours: list
+            List of the colours from which to create a colour map for each
+            category plot.
+
+        * save: string
+            Specify a file path string to save the plot.
+        
+        * show: boolean
+            Specify whether to show the plot.
+        
+        * axes: matplotlib.pyplot.axes instance
+            If given, the plot if done on this axes.
+        
+        Returns:
+            list of biases for each category.
+        
+
+        """
+        bin_bounds = numpy.linspace(0., 1., num_of_bins + 1)[1:-1]
+        if outer_categories_only:
+            categories = [self.categories[0], self.categories[-1]]
+        else:
+            categories = self.categories
+        all_fcst_probs = []
+        all_obs_freqs  = []
+        biases         = []
+        for category in categories:
+            # Get all forecasted probabilities for this category and assign
+            # each to a bin.
+            this_category_probs = self.category_probs[:, category-1]
+            fcst_prob_bins = value_category(this_category_probs, bin_bounds)
+            
+            fcst_probs = []
+            obs_freqs  = []
+            for bin_category in range(1, num_of_bins + 1):
+                # For each bin, collect all forecast probabilities which fell 
+                # into that bin and their associated observation.
+                bin_fcst_probs = []
+                obs_in_cat = []
+                for prob, fcst_bin, ob_cat in zip(this_category_probs,
+                                                  fcst_prob_bins,
+                                                  self.ob_categories):
+                    if fcst_bin == bin_category:
+                        bin_fcst_probs.append(prob)
+                        if ob_cat == category:
+                            obs_in_cat.append(1.)
+                        else:
+                            obs_in_cat.append(0.)
+                fcst_probs.append(numpy.mean(bin_fcst_probs))
+                obs_freqs.append(numpy.mean(obs_in_cat))
+            
+            fcst_probs = numpy.ma.masked_invalid(fcst_probs)
+            obs_freqs  = numpy.ma.masked_invalid(obs_freqs)
+            
+            mean_fcst_prob = numpy.mean(fcst_probs)
+            mean_obs_freq  = numpy.mean(obs_freqs)
+            bias = mean_fcst_prob / mean_obs_freq
+            biases.append(bias)
+            all_fcst_probs.append(fcst_probs)
+            all_obs_freqs.append(obs_freqs)
+            
+        if plot:
+            if category_names:
+                assert len(category_names) == len(categories), '%s '\
+                'category_names must be provided.' % len(categories)
+            else:
+                category_names = ['Category %s' % cat for cat in categories]
+            self._reliability_plot(all_fcst_probs, all_obs_freqs, biases,
+                                   title, category_names, colours, save, show, 
+                                   axes)
+        return biases
+                
+                
 class ArrayRegression(object):
     """
     Given a series of values (predictor) and a series of arrays (predictand) of
