@@ -320,13 +320,13 @@ class AreaBounds(object):
                                                                                         bounds[self.y_max]))
         if bounds_range:
             out_of_bounds = {}
-            if round(bounds[self.x_min], 2) < bounds_range[self.x_min]:
+            if bounds[self.x_min] < bounds_range[self.x_min]:
                 out_of_bounds['x_min'] = '%s > %s' % (bounds_range[self.x_min], bounds[self.x_min])
-            if round(bounds[self.y_min], 2) < bounds_range[self.y_min]:
+            if bounds[self.y_min] < bounds_range[self.y_min]:
                 out_of_bounds['y_min'] = '%s > %s' % (bounds_range[self.y_min],  bounds[self.y_min])
-            if round(bounds[self.x_max], 2) > bounds_range[self.x_max]:
+            if bounds[self.x_max] > bounds_range[self.x_max]:
                 out_of_bounds['x_max'] = '%s < %s' % (bounds_range[self.x_max], bounds[self.x_max])
-            if round(bounds[self.y_max], 2) > bounds_range[self.y_max]:
+            if bounds[self.y_max] > bounds_range[self.y_max]:
                 out_of_bounds['y_max'] = '%s < %s' % (bounds_range[self.y_max], bounds[self.y_max])
             
             if out_of_bounds:
