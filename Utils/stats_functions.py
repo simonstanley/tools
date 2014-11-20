@@ -596,6 +596,7 @@ class ProbabilityAccuracyScores(object):
     def _plot(self, plot_type, all_x_vals, all_y_vals, scores, title, xlab, 
               ylab, legend_title, categoriy_names, colours, save, show, axes):
         """
+        Plot the specified plot type.
         
         """
         cmap = LinearSegmentedColormap.from_list('cmap', colours)

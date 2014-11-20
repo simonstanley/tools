@@ -537,6 +537,7 @@ class Seasons(object):
                         'December']
         self.seasons = ['JFM', 'FMA', 'MAM', 'AMJ', 'MJJ', 'JJA', 'JAS', 'ASO',
                         'SON', 'OND', 'NDJ', 'DJF']
+        self.months_dict = months_dict
     
     @staticmethod
     def _abbreviate_str(string, str_method='upper', abbreviation=3):

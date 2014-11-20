@@ -49,7 +49,7 @@ ncic_var_dict = {'Precip' : {'name'     : 'Precipitation',
                              'filename' : 'tmean'}}
 
 eobs_var_dict = {'Precip' : {'name'     : 'thickness_of_rainfall_amount',
-                             'filename' : 'rr_0.50deg_reg_v7.0.nc'},
+                             'filename' : 'rr_0.25deg_reg_v10.0.nc'},
                  'Temp'   : {'name'     : 'air_temperature',
                              'filename' : 'tg_0.50deg_reg_v7.0.nc'},
                  'Tmax'   : {'name'     : 'air_temperature',

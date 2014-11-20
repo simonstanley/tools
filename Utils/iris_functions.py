@@ -732,6 +732,9 @@ def apply_mask(cube, maskfile, keep_existing_mask=True):
     
     masked_xy_slices = []
     for xy_slice in cube.slices(xy_coord_names):
+        for coord_name in xy_coord_names:
+            if not xy_slice.coord(coord_name).coord_system:
+                xy_slice.coord(coord_name).coord_system = iris.coord_systems.GeogCS(6378137, 6356752)
         xy_slice = regrid_bilinear_rectilinear_src_and_grid(xy_slice, mask)
         if xy_slice.data.shape != mask.data.shape:
             mask.transpose([1,0])
