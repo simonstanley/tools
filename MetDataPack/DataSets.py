@@ -15,7 +15,7 @@ from GetData import ObservationData
 NAO_PATH      = '/net/home/h02/sstanley/Documents/data/NAO_index.txt'
 FLOOD_PATH    = '/home/h02/sstanley/Documents/data/flood_event_count_89_13.txt'
 NCICTEXT_PATH = 'http://www01/obs_dev/od4/series/text/'
-EObs_PATH     = '/project/seasonal/hadyn/e_obs/'
+EObs_PATH     = '/data/cr1/sstanley/eobs/'
 NCIC_PATH     = '/project/ncic/NCIC/projects/NCIC_Gridding_Software/Test_data/'
 ERA_I_PATH    = '/project/seasonal/frgo/'
 ISSFCST_PATH  = '/home/h02/frgo/TEST/jhirst_plots/new_caboff_plots/plots_N216/'
@@ -48,14 +48,12 @@ ncic_var_dict = {'Precip' : {'name'     : 'Precipitation',
                  'Temp'   : {'name'     : 'air_temperature',
                              'filename' : 'tmean'}}
 
-eobs_var_dict = {'Precip' : {'name'     : 'thickness_of_rainfall_amount',
+eobs_var_dict = {'precip' : {'name'     : 'thickness_of_rainfall_amount',
                              'filename' : 'rr_0.25deg_reg_v10.0.nc'},
-                 'Temp'   : {'name'     : 'air_temperature',
-                             'filename' : 'tg_0.50deg_reg_v7.0.nc'},
-                 'Tmax'   : {'name'     : 'air_temperature',
-                             'filename' : 'tx_0.50deg_reg_v7.0.nc'},
-                 'Tmin'   : {'name'     : 'air_temperature',
-                             'filename' : 'tn_0.50deg_reg_v7.0.nc'}}
+                 'temp'   : {'name'     : 'air_temperature',
+                             'filename' : 'tg_0.25deg_reg_v10.0.nc'},
+                 'mslp'   : {'name'     : 'air_pressure_at_sea_level',
+                             'filename' : 'pp_0.25deg_reg_v10.0.nc'}}
 
 era_var_dict = {'temp' : {'name'     : 'air_temperature',
                           'filename' : 't2m'},
@@ -514,7 +512,7 @@ class EObsData(ObservationData):
         
         if type(dates) == datetime.datetime:
             dates = [dates, dates]
-        variable = variable.title()
+        variable = variable.lower()
         super(EObsData, self).__init__(
                               directory=EObs_PATH, 
                               variable=eobs_var_dict[variable]['name'],
