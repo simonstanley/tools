@@ -481,7 +481,7 @@ class _DataHandler(object):
         Returns:
             iris cube
             
-        """        
+        """
         try:
             if not cube.coord(self.xy_coords[0]).has_bounds():
                 cube.coord(self.xy_coords[0]).guess_bounds()
@@ -494,14 +494,19 @@ class _DataHandler(object):
                 cube.coord(self.xy_coords[-1]).guess_bounds()
         except ValueError:
             pass
-        if 'longitude' in self.xy_coords[0] and \
-           'latitude' in self.xy_coords[-1]:
-            grid_areas = iris.analysis.cartography.area_weights(cube)
+        # Only these methods use weighting.
+        if method in ['MEAN', 'SUM', 'RMS']:
+            if 'longitude' in self.xy_coords[0] and \
+               'latitude' in self.xy_coords[-1]:
+                grid_areas = iris.analysis.cartography.area_weights(cube)
+            else:
+                grid_areas = None
+            cube = cube.collapsed([self.xy_coords[0], self.xy_coords[-1]], 
+                                   getattr(iris.analysis, method), 
+                                   weights=grid_areas)
         else:
-            grid_areas = None
-        cube = cube.collapsed([self.xy_coords[0], self.xy_coords[-1]], 
-                               getattr(iris.analysis, method), 
-                               weights=grid_areas)
+            cube = cube.collapsed([self.xy_coords[0], self.xy_coords[-1]], 
+                                   getattr(iris.analysis, method))
         return cube
 
     def cube_coordinate_analysis(self, cube, coordinate, method='MEAN'):
