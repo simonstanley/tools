@@ -12,7 +12,7 @@ from urllib2 import urlopen
 from calendar import monthrange
 from GetData import ObservationData
 
-NAO_PATH      = '/net/home/h02/sstanley/Documents/data/NAO_index.txt'
+NAO_PATH      = '/project/hadobs1/OBS/pressure/NAO/actual/nao_jones_rodwell_monthly.dat'
 FLOOD_PATH    = '/home/h02/sstanley/Documents/data/flood_event_count_89_13.txt'
 NCICTEXT_PATH = 'http://www01/obs_dev/od4/series/text/'
 EObs_PATH     = '/data/cr1/sstanley/eobs/'
@@ -758,8 +758,8 @@ class IssuedForecastData(object):
                     if line[0].isalpha():
                         text_line_numbers.append(i)
         except IOError:
-            raise UserWarning("Can't find raw forecast data issued %s %s" 
-                              % (self.iss_month, self.iss_year))
+            raise IOError("Can't find raw forecast data issued %s %s" 
+                          % (self.iss_month, self.iss_year))
         # The index required is at the text line furthest down the file. The 
         # text lines are later removed therefore the required index is the last
         # text line number minus the number of other text lines in the file.
@@ -808,8 +808,8 @@ class IssuedForecastData(object):
                                     skiprows=2, 
                                     filling_values=self.missing_val)
         except IOError:
-            raise UserWarning("Can't find modified forecast data issued %s %s" 
-                              % (self.iss_month, self.iss_year))
+            raise IOError("Can't find modified forecast data issued %s %s" 
+                           % (self.iss_month, self.iss_year))
         return filter(lambda val: val != self.missing_val, data)
 
     def _obs_from_file_load(self):
