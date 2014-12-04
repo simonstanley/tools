@@ -819,6 +819,13 @@ class IssuedForecastData(object):
         """
         return self._raw_data_load(col=2)
 
+    def _member_numbers_load(self):
+        """
+        Load the observation data from the raw data file.
+        
+        """
+        return self._raw_data_load(col=3)
+
     def _obs_from_ncic_load(self, years, region):
         """
         Load observation data directly from NCIC pages.
@@ -873,7 +880,7 @@ class IssuedForecastData(object):
         elif dtype == 'obs':
             return 'obs_{P}_{V}.txt'.format(P=self.period, V=var)
 
-    def model_load(self, modified=False):
+    def model_load(self, modified=False, get_member_numbers=False):
         """
         Load the model forecast members.
         
@@ -883,16 +890,26 @@ class IssuedForecastData(object):
             Whether to load the modified forecast of original members. Note, 
             modified members only exist after a seasonal meeting.
         
+        * get_member_numbers: boolean
+            Whether the return the forecast member numbers as well as the 
+            members themselves. The members are returned as a seperate list 
+            in which each element corresponds to the equivilant elememt in the
+            returned data. Note, this is only available for unmodified data.
+        
         Returns:
-            numpy array
+            numpy array (a seperate array is also returned if 
+            get_member_numbers is set to True)
         
         """
         if modified:
             data = self._mod_data_load()
         else:
             data = self._raw_data_load()
+            if get_member_numbers:
+                mems = self._member_numbers_load()
+                return data, mems
         return data
-
+    
     def current_obs_load(self, region='UK'):
         """
         Return the observation for the forecast period.
