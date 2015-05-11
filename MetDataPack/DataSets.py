@@ -903,6 +903,8 @@ class IssuedForecastData(object):
         """
         if modified:
             data = self._mod_data_load()
+            if get_member_numbers:
+                return data, None
         else:
             data = self._raw_data_load()
             if get_member_numbers:

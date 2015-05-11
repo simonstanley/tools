@@ -236,7 +236,7 @@ class _DataHandler(object):
             iris cubelist
         
         """
-        if self.process_workers:
+        if self.process_workers > 1:
             arguments = [[self, load_file] for load_file in files_to_load]
             pool = multiprocessing.Pool(processes=self.process_workers)
             try:
@@ -997,7 +997,7 @@ class CubeListData(_DataHandler):
     Class for iris CubeLists
     
     """
-    def __init__(self, cubelist, 
+    def __init__(self, cubelist,
                   area_bounds_format=default_area_bounds_format, 
                   area_bounds_range=default_area_bounds_range,
                   unwanted_coords=[]):

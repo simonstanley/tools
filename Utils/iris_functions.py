@@ -357,6 +357,7 @@ class AreaBounds(object):
         assert len(bounds) == 4, '%s bound(s) provided, 4 required.' \
                                   % len(bounds)
         if not xy_coords:
+            # Guess with...
             xy_coords = ['longitude', 'latitude']
 
         x_contraint_func = lambda x: bounds[self.x_min] <= x <= bounds[self.x_max]
